@@ -1,0 +1,903 @@
+<?php
+
+/**
+ * Implements hook_entity_info()
+ */
+function entity_relationships_entity_info(){
+  
+  $entity_relationships_info['entity_relationship_type'] = array(
+    'label' => t('Entity Relationship Type'),
+    'controller class' => 'EntityRelationshipTypeController',
+    'base table' => 'entity_relationship_type',
+    'uri callback' => 'entity_relationship_type_uri',
+    'fieldable' => TRUE,
+    'entity keys' => array(
+      'id' => 'rtid',
+    ),
+    'static cache' => TRUE,
+    'bundles' => array(
+      'entity_relationship_type'=> array(
+        'label' => 'Entity Relationship Type',
+        'admin' => array(
+          'path' => 'admin/structure/entity-relationship-type/manage',
+          'access arguments' => array('administer entity_relationships'),
+        ),
+      ),
+    ),
+    'view modes' => array(
+      'full' => array(
+        'label' => t('Relationship Type'),
+        'custom settings' =>  FALSE,
+      ),
+    )
+  );
+  
+  $entity_relationships_info['entity_relationship'] = array(
+    'label' => t('Entity Relationship'),
+    'controller class' => 'EntityRelationshipController',
+    'base table' => 'entity_relationship',
+    'uri callback' => 'entity_relationships_uri',
+    'fieldable' => TRUE,
+    'entity keys' => array(
+      'id' => 'rid',
+    ),
+    'static cache' => TRUE,
+    'bundles' => array(
+      'entity_relationship'=> array(
+        'label' => 'Entity Relationship',
+        'admin' => array(
+          'path' => 'admin/structure/entity-relationship/manage',
+          'access arguments' => array('administer entity_relationships'),
+        ),
+      ),
+    ),
+    'view modes' => array(
+      'full' => array(
+        'label' => t('Full Relationship'),
+        'custom settings' =>  FALSE,
+      ),
+    )
+  );
+  
+  return $entity_relationships_info;
+}
+
+/**
+ * Implements hook_menu()
+ */
+function entity_relationships_menu(){
+  
+  // Path for Field API admin interface.  Must match path defined in
+  // entity_relationships_entity_info() above.
+  $items['admin/structure/entity-relationship-type/manage'] = array(
+    'title' => 'Entity Relationships Types Admin',
+    'description' => 'Manage Entity relationship types',
+    'page callback' => 'entity_relationship_type_admin_page',
+    'access arguments' => array('administer entity relationships'),
+  );
+  // The settings form for the entity relationships
+  $items['admin/config/content/entity-relationship'] = array(
+    'title' => 'Entity Relationships Settings',
+    'description' => 'Configure settings for the entity relationships.',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('entity_relationship_settings'),
+    'access arguments' => array('administer entity relationships'),
+  );
+  // The pages to view the entities - must match the paths defined in
+  // entity_relationship_type_uri
+  $items['entity-relationship-type/%entity_relationship_type'] = array(
+    'title callback' => 'entity_relationship_type_page_title',
+    'title arguments' => array(1),
+    'page callback' => 'entity_relationship_type_page_view',
+    'page arguments' => array(1),
+    'access arguments' => array('view entity_relationships'),
+    'type' => MENU_CALLBACK,
+  );
+  // Define pages for adding/editing/deleting entities.
+  $items['entity-relationship-type/add'] = array(
+    'title' => 'Add a relationship type',
+    'page callback' => 'entity_relationship_type_add',
+    'access arguments' => array('create entity_relationships'),
+  );
+  $items['entity-relationship-type/%entity_relationship_type/edit'] = array(
+    'title' => 'Edit a relationship type',
+    'page callback' => 'entity_relationship_type_edit',
+    'page arguments' => array(1),
+    'access arguments' => array('edit entity_relationships'),
+  );
+  $items['entity-relationship-type/%entity_relationship_type/delete'] = array(
+    'title' => 'Delete a relationship type',
+    'page callback' => 'entity_relationship_type_delete',
+    'page arguments' => array(1),
+    'access arguments' => array('edit entity_relationships'),
+  );
+  
+  // Path for Field API admin interface.  Must match path defined in
+  // entity_relationships_entity_info() above.
+  $items['admin/structure/entity-relationship/manage'] = array(
+    'title' => 'Entity Relationships Admin',
+    'description' => 'Manage Entity relationship structure',
+    'page callback' => 'entity_relationships_admin_page',
+    'access arguments' => array('administer entity relationships'),
+  );
+  // The pages to view the entities - must match the paths defined in
+  // entity_relationship_type_uri
+  $items['entity-relationship/%entity_relationships'] = array(
+    'title callback' => 'entity_relationships_page_title',
+    'title arguments' => array(1),
+    'page callback' => 'entity_relationships_page_view',
+    'page arguments' => array(1),
+    'access arguments' => array('view entity_relationships'),
+    'type' => MENU_CALLBACK,
+  );
+  // Define pages for adding entities.
+  $items['entity-relationship/add'] = array(
+    'title' => 'Add a relationship',
+    'page callback' => 'entity_relationships_add',
+    'access arguments' => array('create entity_relationships'),
+  );
+  // Define pages for editing entities.
+  $items['entity-relationship/%entity_relationships/edit'] = array(
+    'title' => 'Edit a relationship',
+    'page callback' => 'entity_relationships_edit',
+    'page arguments' => array(1),
+    'access arguments' => array('edit entity_relationships'),
+  );  
+  return $items;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function entity_relationships_permission(){
+    return array(
+    'administer entity_relationships' =>  array(
+      'title' => t('Administer Entity Relationships'),
+      'restrict access' => TRUE,
+    ),
+    'view entity_relationships' => array(
+      'title' => t('View Entity Relationships'),
+    ),
+    'create entity_relationships' => array(
+      'title' => t('Create Entity Relationships'),
+    ),
+    'edit entity_relationships' => array(
+      'title' => t('Edit Entity Relationships'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ *
+ * This exposes the fields defined in the schema in the install file as 
+ * pseudo-fields so they can be handled by the Entity and Field core functionality.
+ */
+function entity_relationships_field_extra_fields() {
+  $return = array();
+  
+  $return['entity_relationship_type']['entity_relationship_type'] = array(
+    'form' => array(
+      'type_label' => array(
+        'label' => t('Label'),
+        'description' => t('The label for the relationship type'),
+        'weight' => 1,
+      ),
+    ),
+    'display' => array(
+      'type_label' => array(
+        'label' => t('Label'),
+        'description' => t('The label for the relationship type'),
+        'weight' => 1,
+      ),
+    ),
+  );
+  
+  $return['entity_relationship']['entity_relationship'] = array(
+    'form' => array(
+      'source_id' => array(
+        'label' => t('Source ID'),
+        'description' => t('The id of the source node'),
+        'weight' => 1,
+      ),
+    ),
+  );
+
+  return $return;
+}
+
+
+/**
+ * Functionality for entity_relationship_type entities
+ */
+
+/**
+ * Fetch a entity_relationship object.
+ *
+ * @param $rid
+ *   Integer specifying the relationship_entity id
+ * @param $reset
+ *   A boolean specifying whether the internal cache should be reset.
+ * @return
+ *   A fully loaded entity_relationship object or FALSE if it cannot be loaded.
+ *
+ * @See entity_relationships_load_multiple()
+ */ 
+function entity_relationship_type_load($rtid = NULL, $reset = FALSE){
+  $rtids = (isset ($rtid) ? array($rtid) : array());
+  $relationship_type = entity_relationship_type_load_multiple($rtids, $reset);
+  return $relationship_type ? reset($relationship_type) : FALSE;
+}
+
+/**
+ * Loads multiple entity_relationships based on $conditions
+ */
+function entity_relationship_type_load_multiple($rtids = array(), $conditions = array(), $reset = FALSE){
+  return entity_load('entity_relationship_type', $rtids, $conditions, $reset);
+}
+
+/**
+ * Implement the uri callback as defined in hook_entity_info().
+ */
+function entity_relationship_type_uri($relationship_type){
+  return array(
+    'path' => 'entity-relationship-type/' . $relationship_type->rtid,
+  );
+}
+
+/**
+ * Provide some basic info for the entity_relationship_type admin page.
+ */
+function entity_relationship_type_admin_page() {
+  $output = 'Welcome to the administration page for the Entity Relationship types.<br />';
+  
+  // gather a list of existing relationship types.
+  $types = entity_get_controller('entity_relationship_type')->load_all();
+  
+  $output .= '<ul class="action-links">';
+  $output .= '<li>' . l('Add relationship type', 'entity-relationship-type/add') . '</li>';
+  $output .= '</ul>';
+  
+  $output .= '<table class="sticky-enabled tableheader-processed sticky-table">';
+  $output .= '<thead><tr><th>Name</th><th colspan="2">Operations</th></tr></thead>';
+  $output .= '<tbody>';
+  foreach ($types as $key => $type) {
+    $uri = entity_relationship_type_uri($type);
+    if ($key & 1) {
+      $tr_class = 'odd';
+    }
+    else {
+      $tr_class = 'even';
+    }
+    $output .= '<tr class="' . $tr_class . '">';
+    $output .= '<td>' . $type->type_label . '</td>';
+    $output .= '<td>' . l('edit', $uri['path'] . '/edit') . '</td>';
+    $output .= '<td>' . l('delete', $uri['path'] . '/delete') . '</td>';
+    $output .= '</tr>';
+  }
+  $output .= '</tbody>';
+  $output .= '</table>';
+  return $output;
+}
+
+/**
+ * Admin settings form callback
+ */
+function entity_relationship_settings($form_state) {
+  $form = array();
+    
+  $form['entity_relationship_content_types'] = array(
+    '#type' => 'textfield',
+    '#title' => 'Content types',
+    '#default_value' => variable_get('entity_relationship_content_types', ''),
+    '#description' => t('The content types that have relationships to other content.  The relationship elements will be added to the edit form for these content types. <br />Add multiple content types comma seperated.'),
+  );
+  
+  $form = system_settings_form($form);
+  $form['#submit'][] = 'entity_relationship_settings_submit';
+  return $form;
+}
+
+/**
+ * Validation handler for admin settings form
+ */
+function entity_relationship_settings_validate($form, &$form_state) { 
+}
+
+/**
+ * Submit handler for admin settings form
+ */
+function entity_relationship_settings_submit($form, &$form_state) {
+}
+
+/**
+ * Callback for the entity_relationship_type title.
+ */ 
+function entity_relationship_type_page_title($relationship_type){
+  return $relationship_type->type_label;
+}
+
+/**
+ * Callback for displaying the entity
+ */
+function entity_relationship_type_page_view($relationship_type, $view_mode = 'full'){
+  
+  $relationship_type->content = array();
+  
+  // Build fields content.  FieldAPI takes care of this
+  field_attach_prepare_view('entity_relationship_type', array($relationship_type->rtid => $relationship_type), $view_mode);
+  entity_prepare_view('entity_relationship_type', array($relationship_type->rtid => $relationship_type));
+  $relationship_type->content += field_attach_view('entity_relationship_type', $relationship_type, $view_mode);
+  
+  return $relationship_type->content;
+  
+}
+
+/**
+ * Creates a entity_relationship_type entity.  Initialises the main variables and
+ * passes them on to a form to add the rest.
+ */
+function entity_relationship_type_add() {
+  $relationship_type = (object) array (
+    'rtid' => '',
+    'type' => 'entity_relationship_type',
+    'type_label' => '',
+  );
+  
+  return drupal_get_form('entity_relationship_type_add_form', $relationship_type);
+}
+
+/**
+ * Form callback - allows us to create a entity_relationship_type entity.
+ * 
+ * Initially the form is setup with elements for fields defined in the schema -
+ * i.e. those in the base table.  Additional fields are the added via a call to
+ * the FieldAPI's field_attach_form() function.
+ */
+function entity_relationship_type_add_form($form, &$form_state, $relationship_type) {
+  
+  // fields from the base table
+  $form['rtid'] = array(
+    '#type' => 'hidden',
+    '#title' => t(''),
+    '#required' => FALSE,
+    '#default_value' => $relationship_type->rtid,
+  );
+  $form['type_label'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Label'),
+    '#required' => TRUE,
+    '#default_value' => $relationship_type->type_label,
+  );
+  
+  // Attach any additional fields.
+  field_attach_form('entity_relationship_type', $relationship_type, $form, $form_state);
+  
+  // add a submit button.
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+function entity_relationship_type_add_form_validate($form, &$form_state) {
+  $relationship_type_submission = (object) $form_state['values'];
+  field_attach_form_validate('entity_relationship_type', $relationship_type_submission, $form, $form_state);
+}
+
+function entity_relationship_type_add_form_submit($form, &$form_state) {
+  $relationship_type_submission = (object) $form_state['values'];
+  field_attach_submit('entity_relationship_type', $relationship_type_submission, $form, $form_state);
+  $relationship_type = entity_relationship_type_save($relationship_type_submission);
+  $form_state['redirect'] = "admin/structure/entity-relationship-type/manage";
+}
+
+function entity_relationship_type_edit($relationship_type) {
+  return drupal_get_form('entity_relationship_type_add_form', $relationship_type);
+}
+
+function entity_relationship_type_delete($relationship_type) {
+  return drupal_get_form('entity_relationship_type_delete_form', $relationship_type);
+}
+
+/**
+ * Form callback - allows us to delete an entity_relationship_type entity.
+ */
+function entity_relationship_type_delete_form($form, &$form_state, $relationship_type) {
+  
+  // fields from the base table
+  $form['rtid'] = array(
+    '#type' => 'hidden',
+    '#title' => t(''),
+    '#required' => FALSE,
+    '#default_value' => $relationship_type->rtid,
+  );
+  
+  $form['confirm'] = array(
+    '#markup' => '<p>Are you sure you want to delete the <strong>"' . $relationship_type->type_label .  '"</strong> relationship type?</p>',
+  );
+  
+  // add a submit button.
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Delete'),
+  );
+  $relationship_uri = entity_relationship_type_uri($relationship_type);
+  $form['cancel'] = array(
+    '#markup' => l('cancel', 'admin/structure/entity-relationship-type/manage'),
+  );
+  return $form;
+}
+
+function entity_relationship_type_delete_form_submit($form, &$form_state) {
+  
+  $relationship_type = entity_relationship_type_load($form['rtid']['#value']);
+  entity_get_controller('entity_relationship_type')->delete($relationship_type);
+  drupal_set_message('<p>The <strong>"' . $relationship_type->type_label .  '"</strong> relationship was deleted</p>');
+  $form_state['redirect'] = "admin/structure/entity-relationship-type/manage";
+}
+
+/**
+ * Save the entity by passing the data through to the controller.
+ */
+function entity_relationship_type_save(&$relationship_type) {
+  return entity_get_controller('entity_relationship_type')->save($relationship_type);
+}
+
+/**
+ * Function for returning a list of relationship types.  Used to populate a 
+ * select form element.
+ */
+function _get_relationship_types_for_select() {
+  $values = array();
+  
+  $types = entity_get_controller('entity_relationship_type')->load_all();
+  
+  foreach ($types as $type) {
+    $values[$type->rtid] = $type->type_label;
+  }
+  return $values;
+}
+
+/**
+ * Functionality for entity_relationship entities
+ */
+
+/**
+ * Fetch a entity_relationship object.
+ *
+ * @param $rid
+ *   Integer specifying the relationship_entity id
+ * @param $reset
+ *   A boolean specifying whether the internal cache should be reset.
+ * @return
+ *   A fully loaded entity_relationship object or FALSE if it cannot be loaded.
+ *
+ * @See entity_relationships_load_multiple()
+ */ 
+function entity_relationships_load($rid = NULL, $reset = FALSE){
+  $rids = (isset ($rid) ? array($rid) : array());
+  $relationship = entity_relationships_load_multiple($rids, $reset);
+  return $relationship ? reset($relationship) : FALSE;
+}
+
+/**
+ * Loads multiple entity_relationships based on $conditions
+ */
+function entity_relationships_load_multiple($rids = array(), $conditions = array(), $reset = FALSE){
+  return entity_load('entity_relationship', $rids, $conditions, $reset);
+}
+
+/**
+ * Implement the uri callback as defined in hook_entity_info().
+ */
+function entity_relationships_uri($relationship){
+  return array(
+    'path' => 'entity-relationship/' . $relationship->id,
+  );
+}
+
+/**
+ * Provide some basic info for the entity admin page.
+ */
+function entity_relationships_admin_page() {
+  $output = 'Welcome to the administration page for the Entity Relationships.<br />';
+  return $output;
+}
+
+/**
+ * Callback for the entity title.
+ */ 
+function entity_relationships_page_title($relationship){
+  return $relationship->rid;
+}
+
+/**
+ * Callback for displaying the entity
+ */
+function entity_relationships_page_view($relationship, $view_mode = 'full'){
+  
+  $relationship->content = array();
+  // Build fields content.  FieldAPI takes care of this
+  field_attach_prepare_view('entity_relationship', array($relationship->rid => $relationship), $view_mode);
+  entity_prepare_view('entity_relationship', array($relationship->rid => $relationship));
+  $relationship->content += field_attach_view('entity_relationship', $relationship, $view_mode);
+  drupal_set_title("Relationship");
+  
+  return $relationship->content;
+}
+
+/**
+ * Creates a entity_relationships entity.  Initialises the main variables and
+ * passes them on to a form to add the rest.
+ */
+function entity_relationships_add() {
+  $relationship = (object) array (
+    'rid' => '',
+    'type' => 'entity_relationship',
+    'source_id' => '',
+  );
+  
+  return drupal_get_form('entity_relationships_add_form', $relationship);
+}
+
+/**
+ * Form callback - allows us to create a entity_relationships entity.
+ * 
+ * Initially the form is setup with elements for fields defined in the schema -
+ * i.e. those in the base table.  Additional fields are the added via a call to
+ * the FieldAPI's field_attach_form() function.
+ */
+function entity_relationships_add_form($form, &$form_state, $relationship) {
+  
+  // fields from the base table
+  $form['rid'] = array(
+    '#type' => 'hidden',
+    '#title' => t(''),
+    '#required' => FALSE,
+    '#default_value' => $relationship->rid,
+  );
+  $form['source_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Source ID'),
+    '#required' => TRUE,
+    '#default_value' => $relationship->source_id,
+  );
+  
+  // Attach any additional fields.
+  field_attach_form('entity_relationship', $relationship, $form, $form_state);
+  
+  // add a submit button.
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  
+  return $form;
+}
+
+function entity_relationships_add_form_validate($form, &$form_state) {
+  $relationship_submission = (object) $form_state['values'];
+  field_attach_form_validate('entity_relationship', $relationship_submission, $form, $form_state);
+}
+
+function entity_relationships_add_form_submit($form, &$form_state) {
+  $relationship_submission = (object) $form_state['values'];
+  field_attach_submit('entity_relationship', $relationship_submission, $form, $form_state);
+  $relationship = entity_relationships_save($relationship_submission);
+  $form_state['redirect'] = "entity-relationship/$relationship->rid";
+}
+
+function entity_relationships_edit($relationship) {
+  return drupal_get_form('entity_relationships_add_form', $relationship);
+}
+
+/**
+ * Save the entity by passing the data through to the controller.
+ */
+function entity_relationships_save(&$relationship) {
+  return entity_get_controller('entity_relationship')->save($relationship);
+}
+
+/**
+ * Delete the entity by passing the data through to the controller.
+ */
+function entity_relationships_delete(&$relationship) {
+  return entity_get_controller('entity_relationship')->delete($relationship);
+}
+
+
+/**
+ * Alter node forms
+ */
+
+/**
+ * Submit handler for the "add relationship" button.
+ *
+ * It just increments the max counter and triggers a rebuild of the form.
+ */
+function entity_relationship_add_relationship($form, &$form_state) {
+  $form_state['num_relationships']++;
+  $form_state['rebuild'] = TRUE;
+}
+
+/**
+ * A callback function (called by the #ajax['callback'] element in the form). 
+ * Simply selects and returns the portion of the form that is to be replaced
+ * on the original page.
+ */
+function entity_relationship_add_relationship_callback($form, $form_state) {
+ return $form['relationship_fieldset'];
+}
+
+/**
+ * Function that's called after the form is built to disable any fields that
+ * belong to a relationship that's marked for deletion
+ */
+function _disable_deleted_form_elements($form, &$form_state) {
+  foreach($form['relationship_fieldset'] as $element_name => &$element) {
+    if (is_numeric(str_replace("relationship_", "", $element_name))) {
+      if (isset($element['delete']['#checked'])) {
+        if ($element['delete']['#checked'] == 1) {
+          // Add a class to mark the div as marked for deletion
+          $element['#prefix'] = '<div class="relationship-wrapper deleted">';
+          // disable the type select
+          if (!isset($element['rtid']['#attributes'])) {
+            $element['rtid']['#attributes'] = array();
+          }
+          $element['rtid']['#attributes']['disabled'] = 'disabled';
+          // disable the node reference
+          if (!isset($element['entity_relationship_to_node']['und'][0]['nid']['#attributes'])) {
+            $element['entity_relationship_to_node']['und'][0]['nid']['#attributes'] = array();
+          }
+          $element['entity_relationship_to_node']['und'][0]['nid']['#attributes']['disabled'] = 'disabled';
+        }
+      }      
+    }
+  }
+  return $form;
+}
+
+/**
+ * A callback function (called by the #ajax['callback'] element in the form). 
+ * Simply selects and returns the portion of the form that is to be replaced
+ * on the original page.
+ */
+function entity_relationship_delete_relationship_callback($form, $form_state) {
+  return $form['relationship_fieldset'];
+}
+
+/**
+ * A function for processing the form elements added to the fds_work_node_form
+ * by the hook_form_fds_work_node_form_alter function defined below.
+ * The node form continues to be processed in the normal way, so this function
+ * is only required to process the relationship specific elements.
+ */
+function entity_relationships_form_fds_work_node_form_submit($form, &$form_state) {
+  
+  $relationships = $form_state['values']['relationship_fieldset'];
+  
+  foreach ($relationships as $key => $relationship) {
+    // ensure that each element within the relationship_fieldset is a relationship.
+    // relationship elements are named 'relationship_x' where x is an integer.
+    // This avoids attempting to save any other elements such as the 'add' button.
+    if (is_numeric(str_replace("relationship_", "", $key))) {
+      $relationship = (object) $relationship;
+      
+      // unset the rid for any new relationships
+      if ($relationship->rid == 'new') {
+        unset($relationship->rid);
+      }
+      
+      // if the relationship is marked for deletion
+      if ($relationship->delete == 1) {
+        // and it is an existing relationship
+        if (isset($relationship->rid)) {
+          // delete the relationship.
+          $number_deleted = entity_relationships_delete($relationship);
+        }
+      }
+      else {
+        // check that the node reference is not empty
+        if (! empty($relationship->entity_relationship_to_node['und'][0]['nid'])) {
+          $relationship = entity_relationships_save($relationship);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Implements hook_form_alter.  Adds relationship form elements to the node
+ * forms for content types specified the admin.
+ */
+function entity_relationships_form_alter(&$form, &$form_state, $form_id) {
+  
+  
+  $content_types = explode(',', variable_get('entity_relationship_content_types', ''));
+  foreach($content_types as &$content_type) {
+    $content_type = trim($content_type);
+  }
+  if (isset($form['type']['#value'])) {
+    if (in_array($form['type']['#value'], $content_types) ) {
+      $nid = $form['nid']['#value'];
+      
+      // fetch ids of all relationships with the current nid as the relationship source.
+      $rids = entity_get_controller('entity_relationship')->load_rids_by_node($nid);
+      
+      // load the relationship data
+      $relationships = entity_relationships_load_multiple($rids);
+      // entity_relationships_load_multiple returns an array keyed by rid
+      // reset this to a simple count
+      $relationships = array_values($relationships);
+      // pass the relationships to the form for rendering
+      
+      
+      $form['#submit'][] = 'entity_relationships_form_fds_work_node_form_submit';
+      // add a function to run after the form is built
+      // This function disables the elements relating to relationships that are marked
+      // for deletion.
+      $form['#after_build'][] = '_disable_deleted_form_elements';
+      
+      // create a fieldset to hold all the relationships
+      $form['relationship_fieldset'] = array(
+        '#type' => 'fieldset',
+        '#title' => t('Key Relationships'),
+        // Set up the wrapper so that AJAX will be able to replace the fieldset.
+        '#prefix' => '<div id="relationship-fieldset-wrapper">',
+        '#suffix' => '</div>',
+        '#collapsible' => TRUE,
+      );
+      // Because we have multiple fields with the same values, we have to set
+      // #tree to be able to access them.
+      $form['relationship_fieldset']['#tree'] = TRUE;
+      
+      // Build the fieldset with the correct number of relationships. We'll use
+      // $form_state['num_relationships'] to determine the number of relationships
+      // to build.
+      if (empty($form_state['num_relationships'])) {
+        $form_state['num_relationships'] = count($relationships);
+      }
+      
+      for ($i = 0; $i < $form_state['num_relationships']; $i++) {
+        // if the current relationship is a pre-existing relationship, fetch it
+        // from the $relationships array
+        if (count($relationships) > $i) {
+          $relationship = $relationships[$i];
+          if (! isset($relationship->delete)) {
+            $relationship->delete = 0;
+          }
+        }
+        // if it's a new relationship create a dummy structure to hang the form
+        // elements on. 
+        else {
+          $relationship = new stdClass();
+          $relationship->rid = 'new';
+          $relationship->rtid = 0;
+          $relationship->source_id = $nid;
+          $relationship->delete = 0;
+        }
+        
+        // create a subform for the current relationship
+        $sub_form = array(
+          '#type' => 'fieldset',
+          '#title' => t(''),
+          '#required' => FALSE,
+          '#collapsible' => FALSE,
+          '#description' => t(''),
+          '#prefix' => '<div class="relationship-wrapper">',
+          '#suffix' => '</div>',
+        );
+        // add the basic fields
+        $sub_form['rid'] = array(
+          '#type' => 'hidden',
+          '#required' => TRUE,
+          '#default_value' => $relationship->rid,
+        );
+        $sub_form['source_id'] = array(
+          '#type' => 'hidden',
+          '#required' => TRUE,
+          '#default_value' => $relationship->source_id,
+        );
+        // attach the FieldAPI fields for the current relationship to the subform 
+        // using field_attach_form().
+        field_attach_form('entity_relationship', $relationship, $sub_form, $form_state);
+        // field_attach_form appears to add additional elements that belong on the 
+        // top level of the form - as they're being added lower down the structure
+        // we'll remove them.
+        unset($sub_form['#parents']);
+        unset($sub_form['#pre_render']);
+        unset($sub_form['#entity_type']);
+        unset($sub_form['#bundle']);
+        
+        // add a select box to pick the relationship type
+        $sub_form['rtid'] = array(
+          '#type' => 'select',
+          '#title' => t('Role'), 
+          '#default_value' => $relationship->rtid,
+          '#options' => _get_relationship_types_for_select(),
+        );
+        
+        // attach the subform to the main form
+        $form['relationship_fieldset']['relationship_' . $i] = $sub_form;
+        
+        // add a delete checkbox
+        $form['relationship_fieldset']['relationship_' . $i]['delete'] = array(
+          '#type' => 'checkbox',
+          '#title' => t('delete'),
+          '#default' => $relationship->delete,
+          '#required' => FALSE,
+          '#ajax' => array(
+            'callback' => 'entity_relationship_delete_relationship_callback',
+            'wrapper' => 'relationship-fieldset-wrapper',
+          ),
+        );
+
+      }
+      // The button for adding a new relationship fieldset.
+      $form['relationship_fieldset']['add_relationship'] = array(
+        '#type' => 'submit',
+        '#value' => t('Add another'),
+        '#submit' => array('entity_relationship_add_relationship'),
+        '#ajax' => array(
+          'callback' => 'entity_relationship_add_relationship_callback',
+          'wrapper' => 'relationship-fieldset-wrapper',
+        ),
+      );
+    }
+  }
+  return $form;
+  
+}
+
+function entity_relationships_node_view($node, $view_mode, $langcode) {
+  // get the content types that we should process the form for
+  $content_types = explode(',', variable_get('entity_relationship_content_types', ''));
+  foreach($content_types as &$content_type) {
+    $content_type = trim($content_type);
+  }
+  $grouped_relationships = array();
+  $return = array();
+  // Check if the type of the viewed node is in the list of types to process.
+  if (in_array($node->type, $content_types)) {
+    if (in_array($view_mode, array('full', 'homepage_promoted_carousel'))) {
+      // load the relationships
+      $rids = entity_get_controller('entity_relationship')->load_rids_by_node($node->nid);
+      $relationships = entity_relationships_load_multiple($rids);
+      // group the relationships by relationship type
+      foreach($relationships as $relationship) {
+        $grouped_relationships[$relationship->rtid][$relationship->entity_relationship_to_node['und'][0]['nid']] = $relationship; 
+      }
+      
+      // load the date for the relationship types
+      $rtids = array_keys($grouped_relationships);
+      $relationship_types = entity_relationship_type_load_multiple($rtids);
+      
+      foreach($grouped_relationships as $key => $relationship_group) {
+        $type_label = $relationship_types[$key]->type_label;
+        $return[$type_label] = $relationship_group;
+      }
+    }
+  }
+  
+  $node->entity_relationships = $return;
+}
+
+
+function entity_relationships_node_delete($node) {
+  // get the content types that we should process the form for
+  $content_types = explode(',', variable_get('entity_relationship_content_types', ''));
+  
+  if (in_array($node->type,$content_types)) {
+    // check if any relationships reference the node being deleted.
+    // the node id could be in the source or the destination of the relationship.
+    $result = db_query("SELECT er.rid, ert.type_label, er.source_id, f.entity_relationship_to_node_nid FROM {entity_relationship} AS er LEFT JOIN {field_revision_entity_relationship_to_node} AS f ON er.rid = f.entity_id LEFT JOIN {entity_relationship_type} AS ert ON ert.rtid = er.rtid WHERE (source_id = :nid OR f.entity_relationship_to_node_nid = :nid)", array('nid' => $node->nid));
+    
+    foreach ($result->fetchAll() as $relationship)  {
+      entity_relationships_delete($relationship);
+    }
+    
+  }
+}

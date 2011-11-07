@@ -1,0 +1,12 @@
+name = Entity Relationships
+description = Implements relationships between entities.
+package = dbmod
+version = 7.x-dev
+core = 7.x
+
+dependencies[] = node_reference
+
+files[] = entity_relationships.module
+files[] = entity_relationships.install
+files[] = entityRelationship.controller.inc
+files[] = entityRelationshipType.controller.inc

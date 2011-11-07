@@ -1,0 +1,129 @@
+<?php
+
+/**
+ * @file
+ */
+
+
+/**
+ * Define the schema for the entity.
+ */
+function entity_relationships_schema() {
+  
+  $schema['entity_relationship_type'] = array (
+    'description' => 'The relationship types',
+    'fields' => array(
+      'rtid' => array(
+        'description' => 'Primary key for our table of relationship types.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'type_label' => array(
+        'description' => 'The label for the relationship type.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ),
+    ),
+    'primary key' => array('rtid'),
+  );
+  
+  $schema['entity_relationship'] = array (
+    'description' => 'The main store for the entity relationships.',
+    'fields' => array(
+      'rid' => array(
+        'description' => 'Primary key for our table of relationships.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'rtid' => array(
+        'description' => 'The reference to the relationship type.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'source_id' => array(
+        'description' => 'The nid of the source content.',
+        'type' => 'int',
+        'size' => 'normal',
+        'not null' => TRUE,
+        'unsigned' => TRUE,
+      ),
+    ),
+    'primary key' => array('rid'),
+    'foreign keys' => array(
+      'relationship_type' => array(
+        'table' => 'entity_relationship_type',
+        'columns' => array('rtid' => 'rtid'),
+      ),
+    ),
+  );
+  return $schema;
+}
+
+function _entity_relationships_installed_fields() {
+  $t = get_t();
+  $fields = array(
+    'entity_relationship_to_node' => array(
+      'field_name' => 'entity_relationship_to_node',
+      'label'       => $t('Reference'),
+      'cardinality' => 1,
+      'type'         => 'node_reference',
+      'settings'     => array(
+        'referenceable_types'  => array('fds_agent', 'fds_work'),
+      ),
+    ),
+  );
+  return $fields;
+}
+
+function _entity_relationships_installed_instances() {
+  $t = get_t();
+  $instances = array(
+    // Filmographic Data Fields
+    'entity_relationship_to_node' => array(
+      'field_name' => 'entity_relationship_to_node',
+      'label'       => $t('Reference'),
+      'cardinality' => 1,
+      'widget'      => array(
+        'type'    => 'node_reference_autocomplete',
+      ),
+    ),
+  );
+  return $instances;
+}
+
+
+function entity_relationships_install() {
+  
+  // use get_t() to get the name of our localization function for translation
+  // during install, when t() is not available.
+  $t = get_t();
+
+  
+  // Create all the fields we are adding to our content type.
+  // http://api.drupal.org/api/function/field_create_field/7
+  foreach (_entity_relationships_installed_fields() as $field) {
+    field_create_field($field);
+  }
+
+  // Create all the instances for our fields.
+  // http://api.drupal.org/api/function/field_create_instance/7
+  foreach (_entity_relationships_installed_instances() as $instance) {
+    $instance['entity_type'] = 'entity_relationship';
+    $instance['bundle'] = 'entity_relationship';
+    field_create_instance($instance);
+  }
+}
+
+function entity_relationships_uninstall() {
+  
+  foreach (array_keys(_entity_relationships_installed_fields()) as $field) {
+    field_delete_field($field);
+  }
+  
+}
+
+
